@@ -1,0 +1,17 @@
+name: Refresh metrics
+
+on:
+  schedule:
+    # 1時間おき（UTC基準、分は :05 に固定して負荷分散）
+    - cron: '5 * * * *'
+  workflow_dispatch:  # 手動実行も可能
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit refresh endpoint
+        run: |
+          curl -fsSL \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.DASHBOARD_URL }}/api/cron/refresh"
