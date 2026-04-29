@@ -1,65 +1,109 @@
-import Image from "next/image";
+import { GoalCard } from '@/components/GoalCard';
+import { MetricCard } from '@/components/MetricCard';
+import { TrendChart } from '@/components/TrendChart';
+import { supabase, MetricRow } from '@/lib/supabase';
 
-export default function Home() {
+const GOAL_TARGET = 10000;
+const GOAL_DATE = '2026-05-31';
+
+export const revalidate = 300;
+
+async function getMetrics(): Promise<MetricRow[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - 29);
+  const sinceStr = since.toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from('metrics_daily')
+    .select('*')
+    .gte('date', sinceStr)
+    .order('date', { ascending: true });
+  if (error) {
+    console.error('Failed to fetch metrics:', error);
+    return [];
+  }
+  return (data ?? []) as MetricRow[];
+}
+
+function sumOrNull(...values: (number | null)[]): number | null {
+  const valid = values.filter((v): v is number => typeof v === 'number');
+  if (valid.length === 0) return null;
+  return valid.reduce((a, b) => a + b, 0);
+}
+
+export default async function Home() {
+  const rows = await getMetrics();
+  const latest = rows[rows.length - 1];
+  const updatedAt = latest?.date ?? '—';
+
+  const total = latest
+    ? sumOrNull(
+        latest.yt_subscribers,
+        latest.tt_followers,
+        latest.ig_followers,
+        latest.fb_followers,
+      )
+    : null;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="min-h-screen bg-zinc-50 px-6 py-12 dark:bg-zinc-950">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <header>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Shun Global Coaching
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+            動画運用メトリクス・ダッシュボード
           </p>
+        </header>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <section className="rounded-2xl border border-zinc-900 bg-zinc-900 p-6 text-white shadow-sm dark:border-zinc-700">
+            <p className="text-sm font-medium text-zinc-300">合計フォロワー</p>
+            <p className="mt-2 text-5xl font-bold tracking-tight">
+              {total !== null ? total.toLocaleString() : 'N/A'}
+            </p>
+            <p className="mt-1 text-sm text-zinc-400">
+              全プラットフォームの取得済み合計（更新: {updatedAt}）
+            </p>
+          </section>
+
+          <GoalCard current={total} target={GOAL_TARGET} targetDate={GOAL_DATE} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MetricCard
+            platform="YouTube"
+            label="チャンネル登録者"
+            value={latest?.yt_subscribers ?? null}
+            accent="bg-red-500"
+            updatedAt={updatedAt}
+          />
+          <MetricCard
+            platform="TikTok"
+            label="フォロワー"
+            value={latest?.tt_followers ?? null}
+            accent="bg-zinc-900 dark:bg-white"
+            updatedAt={updatedAt}
+          />
+          <MetricCard
+            platform="Instagram"
+            label="フォロワー"
+            value={latest?.ig_followers ?? null}
+            accent="bg-pink-500"
+            updatedAt={updatedAt}
+          />
+          <MetricCard
+            platform="Facebook"
+            label="フォロワー"
+            value={latest?.fb_followers ?? null}
+            accent="bg-blue-600"
+            updatedAt={updatedAt}
+          />
+        </section>
+
+        <TrendChart rows={rows} />
+      </div>
+    </main>
   );
 }
