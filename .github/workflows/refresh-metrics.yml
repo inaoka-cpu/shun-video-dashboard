@@ -2,8 +2,9 @@ name: Refresh metrics
 
 on:
   schedule:
-    # 1時間おき（UTC基準、分は :05 に固定して負荷分散）
-    - cron: '5 * * * *'
+    # 毎時 :00 JST（UTC でも :00）。
+    # GitHub Actions の高負荷で数分遅延することがあるが用途上問題なし。
+    - cron: '0 * * * *'
   workflow_dispatch:  # 手動実行も可能
 
 jobs:
