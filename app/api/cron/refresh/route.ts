@@ -1,5 +1,6 @@
 import { getYouTubeSubscribers } from '@/lib/youtube';
 import { getTikTokFollowers } from '@/lib/tiktok';
+import { getInstagramFollowers } from '@/lib/instagram';
 import { getServiceClient } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -39,6 +40,13 @@ export async function GET(request: Request) {
     errors.tiktok = e instanceof Error ? e.message : String(e);
   }
 
+  let ig: number | null = null;
+  try {
+    ig = await getInstagramFollowers();
+  } catch (e) {
+    errors.instagram = e instanceof Error ? e.message : String(e);
+  }
+
   const supabase = getServiceClient();
   const { error: upsertError } = await supabase
     .from('metrics_daily')
@@ -46,6 +54,7 @@ export async function GET(request: Request) {
       date: today,
       yt_subscribers: yt,
       tt_followers: tt,
+      ig_followers: ig,
     });
 
   if (upsertError) {
@@ -60,6 +69,7 @@ export async function GET(request: Request) {
     date: today,
     yt_subscribers: yt,
     tt_followers: tt,
+    ig_followers: ig,
     errors: Object.keys(errors).length ? errors : undefined,
   });
 }
